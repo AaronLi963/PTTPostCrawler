@@ -8,9 +8,8 @@ import QT.main_ui as ui
 from PyPtt import PTT
 import util
 import json
+import time
 
-
-ptt_bot = PTT.API()
 
 class MainWindow(QMainWindow, ui.Ui_MainWindow):
     def __init__(self):
@@ -61,7 +60,7 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
             self.statusBar.showMessage("登入成功: " + pttID, 5000)
             self.bottonLoadPosts.clicked.connect(self.getPosts)
      
-    def getPosts(self):
+    def getPosts(self): # trigger DataThread to get data
         aid, board = util.ParseAID(self.inputPTTAID.text())
         post_info = ptt_bot.get_post(board, post_aid=aid)
         self.textArticleTitle.setText(post_info.title)
@@ -84,7 +83,72 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
             self.scrollLayout.addWidget(label)
         self.postWidget.setLayout(self.scrollLayout)
         self.scrollPost.setWidget(self.postWidget)
+
+class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.html
+    statusSignal = pyqtSignal(str)
+    titleSignal = pyqtSignal(str)
+    postSignal = pyqtSignal(str)
+
+    def __init__(self,board,aid,index):
+        super().__init__()
+        self.ptt_bot = PTT.API()
+        self.index = 0
     
+    def setting(self, id, password, board, aid):
+        self.id = id
+        self.password = password
+        self.board = board
+        self.aid = aid
+    
+    def login(self):
+        status = "登入中"
+        try:
+            self.ptt_bot.login(self.id, self.password)
+        except PTT.exceptions.LoginError:
+            status = "登入失敗"
+        except PTT.exceptions.WrongIDorPassword:
+            status = "帳號或密碼錯誤"
+        except PTT.exceptions.LoginTooOften:
+            status = "請稍後再登入"
+        except Exception : 
+            status = "unknown error"
+        else :
+            status = "登入成功: " + self.id
+            util.SaveUserJson(self.id, self.password, self.board, self.aid)
+        
+        self.statusSignal.emit(status)
+        if status.startswith("登入成功"):
+            return True
+        return False
+    
+    def run(self):
+        loginSuccess = self.login()
+        if not loginSuccess:
+            return
+
+        # start to get posts
+        while True :
+            post_info = self.ptt_bot.get_post(self.board, post_aid=self.aid)
+            self.titleSignal.emit(post_info.title)
+            totalPosts = len(post_info.push_list)
+            if totalPosts <= self.index:
+                continue
+            newPosts = post_info.push_list[self.index:]
+            for push_info in post_info.push_list:
+                floor = self.index + 1
+                pushType = '推'
+                if push_info == PTT.data_type.push_type.BOO:
+                    pushType = '噓'
+                elif push_info == PTT.data_type.push_type.ARROW:
+                    pushType = '->'
+                author = push_info.author
+                content = push_info.content
+                buffer = floor + 'F:  ' + pushType + ' ' + author + '\n  ' + content
+                self.postSignal.emit(buffer)
+                self.index = floor
+            time.sleep(3) # load new posts every 3 seconds
+
+
 
 if __name__ == '__main__':
     import sys
