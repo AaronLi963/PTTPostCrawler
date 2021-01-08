@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1021</width>
-    <height>832</height>
+    <width>1138</width>
+    <height>897</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -67,19 +67,6 @@
     </property>
     <property name="text">
      <string>輸入PTT ID :</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="bottonLogin">
-    <property name="geometry">
-     <rect>
-      <x>170</x>
-      <y>160</y>
-      <width>91</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>登入PTT</string>
     </property>
    </widget>
    <widget class="Line" name="line">
@@ -143,13 +130,13 @@
      <string>載入推文</string>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>370</x>
       <y>10</y>
-      <width>651</width>
-      <height>801</height>
+      <width>761</width>
+      <height>861</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -185,8 +172,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>643</width>
-          <height>742</height>
+          <width>753</width>
+          <height>802</height>
          </rect>
         </property>
        </widget>
