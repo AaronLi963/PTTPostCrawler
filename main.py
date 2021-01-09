@@ -142,30 +142,40 @@ class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.htm
             return
         # start to get posts
         while True :
-            post_info = self.ptt_bot.get_post(self.board, post_aid=self.aid)
-            self.titleSignal.emit(post_info.title)
-            totalPosts = len(post_info.push_list)
-            if totalPosts <= self.index:
-                continue
-            if totalPosts - self.index > 30:
-                self.index = totalPosts - 30
-            newPosts = post_info.push_list[self.index:]
-            for push_info in newPosts:
-                floor = self.index + 1
-                pushType = '推'
-                if push_info == PTT.data_type.push_type.BOO:
-                    pushType = '噓'
-                elif push_info == PTT.data_type.push_type.ARROW:
-                    pushType = '->'
-                author = push_info.author
-                content = push_info.content
-                pushTime = push_info.time
-                info = str(floor) + 'F:  ' + pushType + '     ' + author
-                # buffer = str(floor) + 'F:  ' + pushType + ' ' + author + '\n  ' + content
-                #buffer = util.SetPushFormat(floor,pushType, author, pushTime, content)
-                self.index = floor
-                self.infoSignal.emit(info)
-                self.postSignal.emit(content)
+            try :
+                post_info = self.ptt_bot.get_post(self.board, post_aid=self.aid)
+                self.titleSignal.emit(post_info.title)
+                totalPosts = len(post_info.push_list)
+                if totalPosts <= self.index:
+                    continue
+                if totalPosts - self.index > 30:
+                    self.index = totalPosts - 30
+                newPosts = post_info.push_list[self.index:]
+                for push_info in newPosts:
+                    floor = self.index + 1
+                    pushType = '推'
+                    if push_info == PTT.data_type.push_type.BOO:
+                        pushType = '噓'
+                    elif push_info == PTT.data_type.push_type.ARROW:
+                        pushType = '->'
+                    author = push_info.author
+                    content = push_info.content
+                    pushTime = push_info.time
+                    info = str(floor) + 'F:  ' + pushType + '     ' + author
+                    # buffer = str(floor) + 'F:  ' + pushType + ' ' + author + '\n  ' + content
+                    #buffer = util.SetPushFormat(floor,pushType, author, pushTime, content)
+                    self.index = floor
+                    self.infoSignal.emit(info)
+                    self.postSignal.emit(content)
+            except PTT.exceptions.ConnectionClosed:
+                self.login()
+
+            except Exception as e: 
+                status = "unknown error"
+                error_class = e.__class__.__name__
+                logging.warning(str(e))
+                break
+
             time.sleep(1) # load new posts every 1 second
 
 
