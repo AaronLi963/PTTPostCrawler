@@ -1,4 +1,7 @@
 import json
+from string import Template
+
+
 
 def ParseAID(AIDString):
     AIDString = AIDString.replace("(","")
@@ -19,3 +22,8 @@ def SaveUserJson(id, password, board, aid):
     with open("user.json", "w") as f:
         json.dump(data, f)
         f.close()
+    
+def SetPushFormat(floor, pushType, author, time, content):
+    t = Template('<font color="white"> $floor </font> <font color="white"> $pushType </font> <font color="yellow"> $author </font>                       <font color="white"> $time </font>\n <font color="yellow"> $content </font>')
+    t.substitute(floor = str(floor), pushType = pushType, author = author, time = str(time), content = content)
+    return str(t)

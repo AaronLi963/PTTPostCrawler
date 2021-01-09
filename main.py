@@ -1,4 +1,5 @@
 from PyQt5 import QtWidgets
+from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -13,9 +14,12 @@ import logging
 
 
 class MainWindow(QMainWindow, ui.Ui_MainWindow):
+    resized = QtCore.pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.resized.connect(self.resizeScrollArea)
         self.setWindowTitle("PTT推文顯示器")
         # self.setFixedSize(960, 840)
         self.statusBar = QStatusBar()
@@ -27,11 +31,15 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
         self.bottonLoadPosts.clicked.connect(self.getPosts)
         # set scroll area
         self.scrollPost.setWidgetResizable(True)
-        self.scrollPost.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.postWidget = QWidget()
         self.scrollLayout = QVBoxLayout()
         self.postWidget.setLayout(self.scrollLayout)
         self.scrollPost.setWidget(self.postWidget)
+        self.scrollPost.verticalScrollBar().setStyleSheet('background: white')
+
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super().resizeEvent(event)
 
     def setUserInfo(self):
         try:
@@ -49,9 +57,16 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
     def setTitle(self, title):
         self.textArticleTitle.setText(title)
     
-    def addPost(self, post):
-        label = QLabel(post)
+    def addPostInfo(self, info):
+        label = QLabel(info)
         label.adjustSize()
+        label.setStyleSheet('color: white;font: 12pt')
+        self.scrollLayout.addWidget(label)
+
+    def addPost(self, content):
+        label = QLabel("  " + content)
+        label.adjustSize()
+        label.setStyleSheet('color: yellow;font: 12pt')
         self.scrollLayout.addWidget(label)
         scroll_bar = self.scrollPost.verticalScrollBar()
         scroll_bar.rangeChanged.connect(lambda: scroll_bar.setValue(scroll_bar.maximum()))
@@ -62,16 +77,29 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
         self.dataThread.statusSignal.connect(self.setStatus)
         self.dataThread.titleSignal.connect(self.setTitle)
         self.dataThread.postSignal.connect(self.addPost)
+        self.dataThread.infoSignal.connect(self.addPostInfo)
         id = self.inputPTTID.text()
         password = self.inputPTTPassword.text()
         self.dataThread.setting(id, password, board, aid)
         self.dataThread.start()
-        
+    def resizeScrollArea(self):
+        # self.statusBar.showMessage("got resize event",1000)
+        mainSize = self.size()
+        # line
+        self.lineSep.resize(10,mainSize.height())
+
+        # layout
+        # self.statusBar.showMessage(str(mainSize),1000)
+        # newWeight = mainSize.width() - 320
+        # newHeight = mainSize.height() - 70
+        # self.scrollPost.resize(newWeight,newHeight)
+
 
 class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.html
     statusSignal = pyqtSignal(str)
     titleSignal = pyqtSignal(str)
     postSignal = pyqtSignal(str)
+    infoSignal = pyqtSignal(str)
     ptt_bot = PTT.API()
 
     def __init__(self):
@@ -131,9 +159,13 @@ class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.htm
                     pushType = '->'
                 author = push_info.author
                 content = push_info.content
-                buffer = str(floor) + 'F:  ' + pushType + ' ' + author + '\n  ' + content
+                pushTime = push_info.time
+                info = str(floor) + 'F:  ' + pushType + '     ' + author
+                # buffer = str(floor) + 'F:  ' + pushType + ' ' + author + '\n  ' + content
+                #buffer = util.SetPushFormat(floor,pushType, author, pushTime, content)
                 self.index = floor
-                self.postSignal.emit(buffer)
+                self.infoSignal.emit(info)
+                self.postSignal.emit(content)
             time.sleep(1) # load new posts every 1 second
 
 
