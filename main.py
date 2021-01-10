@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
@@ -28,7 +31,10 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
         self.setUserInfo()
         self.labelBuffer = []
         self.dataThread = DataThread()
+        self.connectToDataThread() 
+
         self.bottonLoadPosts.clicked.connect(self.getPosts)
+        self.bottonStopLoading.clicked.connect(self.stopGetPosts)
         # set scroll area
         self.scrollPost.setWidgetResizable(True)
         self.postWidget = QWidget()
@@ -60,28 +66,37 @@ class MainWindow(QMainWindow, ui.Ui_MainWindow):
     def addPostInfo(self, info):
         label = QLabel(info)
         label.adjustSize()
-        label.setStyleSheet('color: white;font: 12pt')
+        label.setStyleSheet('color: white;font: 16pt')
         self.scrollLayout.addWidget(label)
 
     def addPost(self, content):
         label = QLabel("  " + content)
         label.adjustSize()
-        label.setStyleSheet('color: yellow;font: 12pt')
+        label.setStyleSheet('color: yellow;font: 16pt')
         self.scrollLayout.addWidget(label)
         scroll_bar = self.scrollPost.verticalScrollBar()
         scroll_bar.rangeChanged.connect(lambda: scroll_bar.setValue(scroll_bar.maximum()))
 
-    def getPosts(self): # trigger DataThread to get data
-        self.bottonLoadPosts.clicked.disconnect()
-        aid, board = util.ParseAID(self.inputPTTAID.text())
+    def connectToDataThread(self):
         self.dataThread.statusSignal.connect(self.setStatus)
         self.dataThread.titleSignal.connect(self.setTitle)
         self.dataThread.postSignal.connect(self.addPost)
         self.dataThread.infoSignal.connect(self.addPostInfo)
+
+    def getPosts(self): # trigger DataThread to get data
+        self.bottonLoadPosts.clicked.disconnect()
+        aid, board = util.ParseAID(self.inputPTTAID.text())
         id = self.inputPTTID.text()
         password = self.inputPTTPassword.text()
         self.dataThread.setting(id, password, board, aid)
+        self.dataThread.stopFlag = False 
         self.dataThread.start()
+    
+    def stopGetPosts(self):
+        self.dataThread.stopLoading()
+        self.bottonLoadPosts.clicked.connect(self.getPosts)
+
+
     def resizeScrollArea(self):
         # self.statusBar.showMessage("got resize event",1000)
         mainSize = self.size()
@@ -101,6 +116,7 @@ class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.htm
     postSignal = pyqtSignal(str)
     infoSignal = pyqtSignal(str)
     ptt_bot = PTT.API()
+    stopFlag = False
 
     def __init__(self):
         super().__init__()
@@ -111,6 +127,10 @@ class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.htm
         self.password = password
         self.board = board
         self.aid = aid
+
+    def stopLoading(self):
+        self.stopFlag = True
+        self.statusSignal.emit("stop loading posts")
     
     def login(self):
         status = "登入中"
@@ -141,7 +161,8 @@ class DataThread(QThread): # ref https://www.cnblogs.com/linyfeng/p/12239856.htm
         if not loginSuccess:
             return
         # start to get posts
-        while True :
+        self.stopFlag = False
+        while (not self.stopFlag) :
             try :
                 post_info = self.ptt_bot.get_post(self.board, post_aid=self.aid)
                 self.titleSignal.emit(post_info.title)
